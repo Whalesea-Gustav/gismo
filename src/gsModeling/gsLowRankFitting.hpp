@@ -391,31 +391,39 @@ T gsLowRankFitting<T>::methodB(bool printErr)
     // Saving the matrices beforehand leads to a speed up of an order of magnitude.
     gsMatrix<T> rhs1 = Xs.transpose() * Z;
 
-    timef1.restart();
-    typename Eigen::SparseLU<typename gsSparseMatrix<T>::Base> solver1;
-    solver1.analyzePattern(lhs1);
-    solver1.factorize(lhs1);
-    timef1.stop();
+    // timef1.restart();
+    // typename Eigen::SparseLU<typename gsSparseMatrix<T>::Base> solver1;
+    // solver1.analyzePattern(lhs1);
+    // solver1.factorize(lhs1);
+    // timef1.stop();
+    typename gsSparseSolver<T>::BiCGSTABILUT solver1(lhs1);
+    if(solver1.preconditioner().info() != Eigen::Success )
+	gsWarn<<  "Preconditioner of solver1 failed. Aborting.\n";
 
     times1.restart();
     //gsMatrix<T> D = solver1.solve(Xs.transpose() * Z);
     gsMatrix<T> D = solver1.solve(rhs1);
     times1.stop();
 
-    timef2.restart();
-    typename Eigen::SparseLU<typename gsSparseMatrix<T>::Base> solver2;
-    solver2.analyzePattern(lhs2);
-    solver2.factorize(lhs2);
-    timef2.stop();
-    gsInfo << "factorization: " << timef1.elapsed() + timef2.elapsed() << std::endl;
+    // timef2.restart();
+    // typename Eigen::SparseLU<typename gsSparseMatrix<T>::Base> solver2;
+    // solver2.analyzePattern(lhs2);
+    // solver2.factorize(lhs2);
+    // timef2.stop();
+    // gsInfo << "factorization: " << timef1.elapsed() + timef2.elapsed() << std::endl;
+    typename gsSparseSolver<T>::BiCGSTABILUT solver2(lhs2);
+    if(solver2.preconditioner().info() != Eigen::Success )
+	gsWarn<<  "Preconditioner of solver2 failed. Aborting.\n";
 
     gsMatrix<T> rhs2 = Ys.transpose() * (D.transpose());
     times2.restart();
     //gsMatrix<T> CT = solver2.solve(Ys.transpose() * (D.transpose()));
     gsMatrix<T> CT = solver2.solve(rhs2);
     times2.stop();
-    gsInfo << "solution: " << times1.elapsed() + times2.elapsed() << std::endl;
+    T solutionTime = times1.elapsed() + times2.elapsed();
+    gsInfo << "solution: " << solutionTime << std::endl;
     time.stop();
+    //gsInfo << "factorization + solution: " << timef1.elapsed() + timef2.elapsed() + times1.elapsed() + times2.elapsed() << std::endl;
 
     if(printErr)
     {
@@ -425,11 +433,12 @@ T gsLowRankFitting<T>::methodB(bool printErr)
 	gsInfo << "method B: " << this->maxPointError() << std::endl;
 	gsWriteParaview(*this->m_result, "result");
     }
-    return time.elapsed();
+    //return time.elapsed();
+    return solutionTime;
 }
 
 template <class T>
-T gsLowRankFitting<T>::methodC(bool printErr, index_t maxIter)
+T gsLowRankFitting<T>::methodC(bool printErr, index_t maxIter, bool pivot)
 {
     gsBSplineBasis<T> uBasis = *(static_cast<gsBSplineBasis<T>*>(&(this->m_basis->component(0))));
     gsBSplineBasis<T> vBasis = *(static_cast<gsBSplineBasis<T>*>(&(this->m_basis->component(1))));
@@ -443,8 +452,9 @@ T gsLowRankFitting<T>::methodC(bool printErr, index_t maxIter)
     vBasis.collocationMatrix(vPar, Ys);
 
     gsMatrix<T> Z = convertToMN(uNum);
-    //gsMatrixCrossApproximation_3<T> crossApp(Z, 0);
-    gsMatrixCrossApproximation<T> crossApp(Z);
+    gsMatrixCrossApproximation_3<T> crossApp(Z, 0);
+    // Using the older implementation leads to trouble in cost_12.
+    //gsMatrixCrossApproximation<T> crossApp(Z);
 
     gsStopwatch time, timef, times, timec;
 
@@ -453,16 +463,18 @@ T gsLowRankFitting<T>::methodC(bool printErr, index_t maxIter)
     gsSparseMatrix<T> lhs2 = Ys.transpose() * Ys;
     lhs2.makeCompressed();
     time.restart();
-    timef.restart();
-    typename Eigen::SparseLU<typename gsSparseMatrix<T>::Base> solver1;
-    solver1.analyzePattern(lhs1);
-    solver1.factorize(lhs1);
+    // timef.restart();
+    // typename Eigen::SparseLU<typename gsSparseMatrix<T>::Base> solver1;
+    // solver1.analyzePattern(lhs1);
+    // solver1.factorize(lhs1);
+    typename gsSparseSolver<T>::BiCGSTABILUT solver1(lhs1);
+    typename gsSparseSolver<T>::BiCGSTABILUT solver2(lhs2);
 
-    typename Eigen::SparseLU<typename gsSparseMatrix<T>::Base> solver2;
-    solver2.analyzePattern(lhs2);
-    solver2.factorize(lhs2);
-    timef.stop();
-    gsInfo << "factorization: " << timef.elapsed() << std::endl;
+    // typename Eigen::SparseLU<typename gsSparseMatrix<T>::Base> solver2;
+    // solver2.analyzePattern(lhs2);
+    // solver2.factorize(lhs2);
+    // timef.stop();
+    // gsInfo << "factorization: " << timef.elapsed() << std::endl;
 
     // Using the original version instead of _3 seems a bit faster.
     // crossApp.compute(true, maxIter);
@@ -472,15 +484,16 @@ T gsLowRankFitting<T>::methodC(bool printErr, index_t maxIter)
     // crossApp.getT(tMat);
     gsMatrix<T> uMat(uNum, maxIter), vMat(uNum, maxIter), tMat(maxIter, maxIter);
     gsVector<T> uVec, vVec;
-    T sigma;
+    //T sigma;
     tMat.setZero();
 
     std::vector<gsVector<T>> uVecs(maxIter), vVecs(maxIter);
     std::vector<T> sigmas(maxIter);
 
     timec.restart();
-    for(index_t i=0; i<maxIter && crossApp.nextIteration(sigmas[i], uVecs[i], vVecs[i], true); i++)
+    for(index_t i=0; i<maxIter; i++)
     {
+	crossApp.nextIteration(sigmas[i], uVecs[i], vVecs[i], pivot);
 	// uMat.col(i) = uVec;
 	// vMat.col(i) = vVec;
 	// tMat(i, i)  = sigma;
@@ -490,7 +503,8 @@ T gsLowRankFitting<T>::methodC(bool printErr, index_t maxIter)
 	// sigmas[i] = sigma;
     }
     timec.stop();
-    gsInfo << "cross approximation: " << timec.elapsed() << std::endl;
+    m_decompTime = timec.elapsed();
+    gsInfo << "cross approximation: " << m_decompTime << std::endl;
 
     for(index_t i=0; i<maxIter; i++)
     {
@@ -506,7 +520,8 @@ T gsLowRankFitting<T>::methodC(bool printErr, index_t maxIter)
     gsMatrix<T> D = solver1.solve(rhs1);
     gsMatrix<T> E = solver2.solve(rhs2);
     times.stop();
-    gsInfo << "solution: " << times.elapsed() << std::endl;
+    T solutionTime = times.elapsed();
+    gsInfo << "solution: " << solutionTime << std::endl;
     time.stop();
 
     if(printErr)
@@ -517,7 +532,8 @@ T gsLowRankFitting<T>::methodC(bool printErr, index_t maxIter)
 	gsInfo << "method C: " << this->maxPointError() << std::endl;
 	gsWriteParaview(*this->m_result, "result");
     }
-    return time.elapsed();
+    //return time.elapsed();
+    return solutionTime;
 }
 
 template <class T>

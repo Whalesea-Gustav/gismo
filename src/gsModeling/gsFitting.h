@@ -151,6 +151,11 @@ public:
 	return math::sqrt(res);
     }
 
+    T getSolutionTime() const
+    {
+	return m_solutionTime;
+    }
+
 private:
     /// Extends the system of equations by taking constraints into account.
     void extendSystem(gsSparseMatrix<T>& A_mat, gsMatrix<T>& m_B);
@@ -192,6 +197,8 @@ protected:
     /// This corresponds to vector q in Prautzch, Boehm, Paluszny:
     /// Bezier and B-spline techniques, Section 4.7.
     gsMatrix<T>       m_constraintsRHS;
+
+    T m_solutionTime;
 
 private:
     //void applySmoothing(T lambda, gsMatrix<T> & A_mat);

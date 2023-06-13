@@ -18,6 +18,7 @@
 #include <gsCore/gsLinearAlgebra.h>
 #include <gsTensor/gsTensorDomainIterator.h>
 
+#include <gsUtils/gsStopwatch.h>
 
 namespace gismo
 {
@@ -97,7 +98,12 @@ void gsFitting<T>::compute(T lambda)
     }
     // Solves for many right hand side  columns
     gsMatrix<T> x;
+    gsStopwatch time;
+    time.restart();
     x = solver.solve(m_B); //toDense()
+    time.stop();
+    m_solutionTime = time.elapsed();
+    gsInfo << "Solving for std fit took " << m_solutionTime << std::endl;
 
     // If there were constraints, we obtained too many coefficients.
     x.conservativeResize(num_basis, Eigen::NoChange);

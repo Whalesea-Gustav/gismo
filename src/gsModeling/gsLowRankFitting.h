@@ -114,7 +114,7 @@ public:
 
     T methodB(bool printErr);
 
-    T methodC(bool printErr, index_t maxIter);
+    T methodC(bool printErr, index_t maxIter, bool pivot=true);
 
     void CR2I_old(const gsMatrix<T>& bott,
 		  const gsMatrix<T>& left,
@@ -183,6 +183,11 @@ public:
 	return m_rank;
     }
 
+    T getDecompTime() const
+    {
+	return m_decompTime;
+    }
+
 protected:
 
     index_t partitionParam(gsMatrix<T>& uPar, gsMatrix<T>& vPar) const;
@@ -226,6 +231,9 @@ protected:
 
     // Number of data points in u-direction.
     index_t m_uNpts;
+
+    // CPU time taken by the decomposition.
+    T m_decompTime;
 };
 
 } // namespace gismo

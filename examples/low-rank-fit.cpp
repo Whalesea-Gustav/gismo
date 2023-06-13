@@ -547,11 +547,12 @@ real_t stdFit(const gsMatrix<real_t>& params,
     // 	   << "L2 err std: "  << L2Err << ",\n"
     // 	   << "l2 err std: "  << fitting.get_l2Error()
     // 	   << std::endl;
-    gsWriteParaview(*fitting.result(), "fitting", 10000, false, true);
+    //gsWriteParaview(*fitting.result(), "fitting", 10000, false, true);
     // gsInfo << "just checking:\n";
     // printErrors(fitting.result(), params, points);
     //return L2Err;
-    return fitting.get_l2Error();
+    //return fitting.get_l2Error();
+    return fitting.getSolutionTime();
 }
 
 real_t stdFit(const gsMatrix<real_t>& params,
@@ -928,25 +929,25 @@ void example_5()
 
 void example_6()
 {
-    index_t sample  = 6; // 8 used to be here.
+    // 2023-06-04: Adapted to the settings of example_14.
+    index_t sample  = 9;
     index_t deg = 3;
     real_t tMin = 0;
     real_t tMax = 2;
     index_t nExperiments = 6;
     index_t nRanks = 5;
-    real_t delta = 3;
+    index_t numSamples = 300;
     bool printErr = false;
 
     gsMatrix<real_t> params, points;
 
     std::vector<index_t> numDOF(nExperiments);
-    if(nExperiments > 0) numDOF[0] = 32;
-    if(nExperiments > 1) numDOF[1] = 64;
-    if(nExperiments > 2) numDOF[2] = 128;
-    if(nExperiments > 3) numDOF[3] = 256;
-    if(nExperiments > 4) numDOF[4] = 512;
-    if(nExperiments > 5) numDOF[5] = 1024;
-    if(nExperiments > 6) numDOF[6] = 2048;
+    if(nExperiments > 0) numDOF[0] = 11;
+    if(nExperiments > 1) numDOF[1] = 19;
+    if(nExperiments > 2) numDOF[2] = 35;
+    if(nExperiments > 3) numDOF[3] = 67;
+    if(nExperiments > 4) numDOF[4] = 131;
+    if(nExperiments > 5) numDOF[5] = 259;
 
     std::vector<index_t> maxRanks(nRanks);
     if(nRanks > 0) maxRanks[0] = 4;
@@ -960,15 +961,20 @@ void example_6()
     gsStopwatch time;
     for(size_t i=0; i<numDOF.size(); i++)
     {
-	sampleDataGre(delta * numDOF[i], params, points, sample, tMin, tMax, deg);
+	gsInfo << "==========================================\n";
+	gsInfo << "numDOF: " << numDOF[i] << std::endl;
+	sampleData(numSamples, params, points, sample, tMin, tMax);
 	index_t numKnots = numDOF[i] - deg - 1;
+
+	//gsInfo << "Method A:\n";
+	//stdFit(params, points, numKnots, deg, sample, tMin);
 
 	gsKnotVector<real_t> knots(tMin, tMax, numKnots, deg+1);
 	gsTensorBSplineBasis<2, real_t> basis(knots, knots);
 	gsLowRankFitting<real_t> lowRankFitting(params, points, basis);
 
 	gsInfo << "Method B:\n";
-	//timesB.push_back(lowRankFitting.methodB(printErr));
+	timesB.push_back(lowRankFitting.methodB(printErr));
 
 	for(size_t j=0; j<maxRanks.size(); j++)
 	{
@@ -978,7 +984,7 @@ void example_6()
 	}
     }
 
-    //gsWriteGnuplot(numDOF, timesB, "example-6-method-B-fast.dat");
+    gsWriteGnuplot(numDOF, timesB, "example-6-method-B-fast.dat");
 
     for(size_t j=0; j<maxRanks.size(); j++)
     {
@@ -1339,6 +1345,75 @@ void example_11(index_t sample, index_t deg, index_t numSamples, real_t epsAcc, 
 	    lowRankFitting.exportDecompErr("example-11-decomp.dat");
     }
 }
+
+void costs_12()
+{
+    index_t sample  = 9;
+    index_t deg = 3;
+    real_t tMin = 0;
+    real_t tMax = 2;
+    index_t nExperiments = 6;
+    index_t numSamples = 300;
+    // bigger example:
+    // index_t nExperiments = 9;
+    // index_t numSamples = 2500;
+    bool printErr = false;
+    real_t nRepetitions(25); // real_t so as to prevent division problems
+
+    gsMatrix<real_t> params, points;
+
+    // The following three arrays must be of length nExperiments.
+    // The ranks up to 259 DOF (inclusive) have been computed by stopCrit.
+    index_t numDOF[] = {11, 19, 35, 67, 131, 259, 515, 1027, 2051};
+    // index_t maxRankPiv[] = {36, 44, 72, 84, 96, 142, 280, 560, 1120};
+    // index_t maxRankFull[] = {24, 38, 58, 76, 88, 130, 270, 540, 1080};
+    index_t maxRankPiv[] = {36, 44, 72, 81, 81, 81, 81, 81, 81};
+    index_t maxRankFull[] = {24, 38, 58, 76, 81, 81, 81, 81, 81};
+    std::vector<index_t> DOF2D(nExperiments);
+    for(size_t i=0; i<DOF2D.size(); i++)
+	DOF2D[i] = numDOF[i] * numDOF[i];
+
+    std::vector<real_t> timesA(nExperiments, 0), timesB(nExperiments, 0),
+	timesCpivDecomp(nExperiments, 0), timesCfullDecomp(nExperiments, 0),
+	timesCpivSolve(nExperiments, 0), timesCfullSolve(nExperiments, 0);
+    sampleData(numSamples, params, points, sample, tMin, tMax);
+    for(index_t j=0; j<nRepetitions; j++)
+    {
+	gsInfo << "Repeating the measurements for the " << j << "-th time.\n";
+	for(index_t i=0; i<nExperiments; i++)
+	{
+	    gsInfo << "==========================================\n";
+	    gsInfo << "numDOF: " << numDOF[i] << std::endl;
+	    index_t numKnots = numDOF[i] - deg - 1;
+
+	    gsKnotVector<real_t> knots(tMin, tMax, numKnots, deg+1);
+	    gsTensorBSplineBasis<2, real_t> basis(knots, knots);
+	    gsLowRankFitting<real_t> lowRankFitting(params, points, basis);
+
+	    gsInfo << "Method A:\n";
+	    timesA[i] += stdFit(params, points, numKnots, deg, sample, tMin) / nRepetitions;
+
+	    gsInfo << "Method B:\n";
+	    timesB[i] += lowRankFitting.methodB(printErr) / nRepetitions;
+
+	    gsInfo << "Method C (pivot), rank " << maxRankPiv[i] << ":\n";
+	    timesCpivSolve[i] += lowRankFitting.methodC(printErr, maxRankPiv[i], true) / nRepetitions;
+	    timesCpivDecomp[i] +=  lowRankFitting.getDecompTime() / nRepetitions;
+
+	    gsInfo << "Method C (full), rank " << maxRankFull[i] << ":\n";
+	    timesCfullSolve[i] += lowRankFitting.methodC(printErr, maxRankFull[i], false) / nRepetitions;
+	    timesCfullDecomp[i] += lowRankFitting.getDecompTime() / nRepetitions;
+	}
+    }
+
+    gsWriteGnuplot(DOF2D, timesA, "example-6-method-A-solutions.dat");
+    gsWriteGnuplot(DOF2D, timesB, "example-6-method-B-solutions.dat");
+    gsWriteGnuplot(DOF2D, timesCpivSolve, "example-6-method-C-solutions-pivot.dat");
+    gsWriteGnuplot(DOF2D, timesCfullSolve, "example-6-method-C-solutions-full.dat");
+    gsWriteGnuplot(DOF2D, timesCpivDecomp, "example-6-method-C-decomposition-pivot.dat");
+    gsWriteGnuplot(DOF2D, timesCfullDecomp, "example-6-method-C-decomposition-full.dat");
+}
+
 
 /// Returns i-th colour from the bright colour scheme for qualitative
 /// data from https://personal.sron.nl/~pault/.
@@ -2058,7 +2133,8 @@ int main(int argc, char *argv[])
 	example_11(sample, deg, numSamples, epsAcc, epsAbort);
 	break;
     case 12:
-	example_12();
+	//example_12();
+	costs_12();
 	break;
     case 13:
 	example_13(sample, deg, epsAcc, epsAbort, quA, quB);
