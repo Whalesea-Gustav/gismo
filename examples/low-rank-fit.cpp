@@ -551,8 +551,8 @@ real_t stdFit(const gsMatrix<real_t>& params,
     // gsInfo << "just checking:\n";
     // printErrors(fitting.result(), params, points);
     //return L2Err;
-    //return fitting.get_l2Error();
-    return fitting.getSolutionTime();
+    return fitting.get_l2Error();
+    //return fitting.getSolutionTime();
 }
 
 real_t stdFit(const gsMatrix<real_t>& params,
@@ -1357,7 +1357,7 @@ void costs_12()
     // bigger example:
     // index_t nExperiments = 9;
     // index_t numSamples = 2500;
-    bool printErr = false;
+    bool printErr = true;
     real_t nRepetitions(25); // real_t so as to prevent division problems
 
     gsMatrix<real_t> params, points;
@@ -1390,8 +1390,8 @@ void costs_12()
 	    gsTensorBSplineBasis<2, real_t> basis(knots, knots);
 	    gsLowRankFitting<real_t> lowRankFitting(params, points, basis);
 
-	    gsInfo << "Method A:\n";
-	    timesA[i] += stdFit(params, points, numKnots, deg, sample, tMin) / nRepetitions;
+	    //gsInfo << "Method A:\n";
+	    //timesA[i] += stdFit(params, points, numKnots, deg, sample, tMin) / nRepetitions;
 
 	    gsInfo << "Method B:\n";
 	    timesB[i] += lowRankFitting.methodB(printErr) / nRepetitions;
@@ -1472,6 +1472,8 @@ void gnuplot_12(const std::string& filename,
 	 << "set format y \"10^{%L}\"\n"
 	 << "set xrange[0:72]\n"
 	 << "set yrange[1e-8:1e2]\n"
+	 << "set xlabel 'rank'\n"
+	 << "set ylabel 'l2-error'\n"
 	 << std::endl;
 
     index_t rightEnd;
@@ -1493,8 +1495,8 @@ void gnuplot_12(const std::string& filename,
     fout << "std(p) = (p < " << rightEnd << " ? " << stdValue << " : 1/0)\n" << std::endl;
 
     fout << "plot '" << data << "' index 0 with linespoints linestyle 1"
-	 << " title 'Algorithm Fast Fit " << numDOF << "x" << numDOF << "DOF',\\\n"
-	 << "std(x) linestyle 11 title 'full LS fitting'" << std::endl;
+	 << " title 'Algorithm LowRankFit " << numDOF << "x" << numDOF << "DOF',\\\n"
+	 << "std(x) linestyle 11 title 'the standard method'" << std::endl;
     fout.close();
 }
 
@@ -1638,7 +1640,7 @@ void gnuplot_13(const std::vector<index_t> numsDOF,
 	     << numsDOF[i] << "x" << numsDOF[i] << " DOF', \\"
 	     << std::endl << "     "
 	     << "'" << filenameInt << "' index 0 with linespoints linestyle " << 2*i+2
-	     << " title 'low rank fitting with weights, "
+	     << " title 'Alg. LowRankFit, "
 	     << numsDOF[i] << "x" << numsDOF[i] << " DOF'";
 	if(i != size - 1)
 	    fout << ", \\" << std::endl << "     ";
@@ -1757,14 +1759,14 @@ void gnuplot_14(const std::vector<real_t>& stdErrs,
     for(size_t i=0; i<datfiles.size(); i++)
 	fout << "'" << datfiles[i] << "' index 0 with linespoints"
 	     << " linestyle " << i+1 << " pointtype " << i+1
-	     << " title  'Algorithm Fast Fit " << numsDOF[i] << "x" << numsDOF[i] << "DOF',\\\n";
+	     << " title  'Alg. LowRankFit, " << numsDOF[i] << "x" << numsDOF[i] << "DOF',\\\n";
     
     fout << "tol(x) linetype 1 linewidth 2 dashtype 4 linecolor rgb '#000000'"
 	 << " title 'epsAcc',\\\n";
     for(size_t i=0; i<size; i++)
     {
 	fout << "std" << numsDOF[i] << "(x) linestyle " << i+1 << " dashtype 2"
-	     << " title 'full LS fitting, " << numsDOF[i] << "x" << numsDOF[i] << "DOF'";
+	     << " title 'the standard method, " << numsDOF[i] << "x" << numsDOF[i] << "DOF'";
 	if(i != size - 1)
 	    fout << ",\\\n";
     }
@@ -2133,11 +2135,11 @@ int main(int argc, char *argv[])
 	example_11(sample, deg, numSamples, epsAcc, epsAbort);
 	break;
     case 12:
-	//example_12();
-	costs_12();
+	example_12();
+	//costs_12();
 	break;
     case 13:
-	example_13(sample, deg, epsAcc, epsAbort, quA, quB);
+	example_13(5, 3, 0, 10, 1, 0);
 	break;
     case 14:
 	example_14();
