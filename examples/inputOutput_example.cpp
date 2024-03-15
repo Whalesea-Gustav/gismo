@@ -56,6 +56,7 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
     //! [Read geometry]
+    auto dataVec = fileData.getAll< gsGeometry<> >();
 
     //! [Print geometry]
     gsInfo << "The file contains: \n" << *pGeom << "\n";

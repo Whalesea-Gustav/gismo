@@ -15,6 +15,9 @@
 
 #include <gismo.h>
 
+#include <ghc/filesystem.hpp>
+namespace fs = ghc::filesystem;
+
 using namespace gismo;
 
 int main(int argc, char *argv[])

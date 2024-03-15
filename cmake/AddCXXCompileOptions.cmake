@@ -5,7 +5,7 @@
 ## Authors: M. Moeller and A. Mantzaflaris 
 ######################################################################
 
-set(CMAKE_CXX_STANDARD_DEFAULT 14)
+set(CMAKE_CXX_STANDARD_DEFAULT 17)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "PGI")
 

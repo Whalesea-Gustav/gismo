@@ -256,7 +256,7 @@ endif(GISMO_WITH_UMFPACK)
 
 #second time
 include_directories(${GISMO_INCLUDE_DIRS})
-
+include_directories(include/filesystem/include)
 # external inclusion paths
 #get_property(EXTERNAL_INCLUDE_DIRS GLOBAL PROPERTY EXTERNAL_INCLUDE_DIRS)
 #include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/external)
@@ -406,5 +406,7 @@ endif(GISMO_BUILD_EXAMPLES)
 unset(GISMO_UNAME CACHE)
 unset(GISMO_PASS CACHE)
 unset(RESTORE_SUBMODULES CACHE)
+
+
 
 #message("GISMO_INCLUDE_DIRS ${GISMO_INCLUDE_DIRS}")
