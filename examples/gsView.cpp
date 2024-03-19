@@ -55,6 +55,11 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    fs::path output_path(fn);
+    output_path.replace_filename(output_path.stem());
+
+    pname = output_path.string();
+
     if (get_basis)
         choice = 3;
     else if (get_mesh)
